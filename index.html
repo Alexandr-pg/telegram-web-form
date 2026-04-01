@@ -80,7 +80,12 @@
             transform: scale(0.98);
         }
 
-        .error {
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error-message {
             color: #e74c3c;
             font-size: 12px;
             margin-top: 5px;
@@ -92,11 +97,6 @@
             padding: 40px 20px;
         }
 
-        .success-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
-
         h1 {
             font-size: 24px;
             margin-bottom: 20px;
@@ -104,11 +104,16 @@
             color: var(--tg-theme-text-color, #000000);
         }
 
+        .required-star {
+            color: #e74c3c;
+            margin-left: 4px;
+        }
+
         @media (max-width: 480px) {
             body {
                 padding: 15px;
             }
-
+            
             input, select, textarea {
                 font-size: 14px;
             }
@@ -118,30 +123,34 @@
 <body>
     <div class="container" id="app">
         <h1>📝 Заполнение анкеты</h1>
-
+        
         <form id="form">
             <div class="form-group">
-                <label>📋 Назначение платежа *</label>
+                <label>📋 Назначение платежа <span class="required-star">*</span></label>
                 <input type="text" name="purpose" required placeholder="Введите назначение платежа">
+                <div class="error-message"></div>
             </div>
 
             <div class="form-group">
-                <label>🔢 Количество *</label>
+                <label>🔢 Количество <span class="required-star">*</span></label>
                 <input type="text" name="quantity" required placeholder="Например: 10 шт.">
+                <div class="error-message"></div>
             </div>
 
             <div class="form-group">
-                <label>🏢 Подотдел *</label>
+                <label>🏢 Подотдел <span class="required-star">*</span></label>
                 <input type="text" name="subdivision" required placeholder="Введите подотдел">
+                <div class="error-message"></div>
             </div>
 
             <div class="form-group">
-                <label>📑 Подстатья *</label>
+                <label>📑 Подстатья <span class="required-star">*</span></label>
                 <input type="text" name="subarticle" required placeholder="Введите подстатью">
+                <div class="error-message"></div>
             </div>
 
             <div class="form-group">
-                <label>💳 Метод оплаты *</label>
+                <label>💳 Метод оплаты <span class="required-star">*</span></label>
                 <select name="payment_method" required>
                     <option value="">Выберите метод оплаты</option>
                     <option value="Банковская карта">Банковская карта</option>
@@ -149,21 +158,25 @@
                     <option value="Безналичный расчет">Безналичный расчет</option>
                     <option value="Электронные деньги">Электронные деньги</option>
                 </select>
+                <div class="error-message"></div>
             </div>
 
             <div class="form-group">
                 <label>💳 Банковская карта</label>
                 <input type="text" name="card_number" placeholder="**** **** **** ****">
+                <div class="error-message"></div>
             </div>
 
             <div class="form-group">
                 <label>📝 Реквизиты</label>
                 <textarea name="requisites" placeholder="Введите реквизиты"></textarea>
+                <div class="error-message"></div>
             </div>
 
             <div class="form-group">
-                <label>💰 Сумма и валюта *</label>
+                <label>💰 Сумма и валюта <span class="required-star">*</span></label>
                 <input type="text" name="amount" required placeholder="Например: 1000 RUB">
+                <div class="error-message"></div>
             </div>
 
             <button type="submit" class="submit-btn">Отправить анкету</button>
@@ -172,83 +185,83 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-
+        
         // Настройка Web App
-        tg.expand(); // Расширяем на весь экран
+        tg.expand();
         tg.ready();
-
+        
         // Получаем информацию о пользователе
         const user = tg.initDataUnsafe?.user || {};
-
+        
         // Функция валидации формы
         function validateForm(formData) {
             const errors = {};
             const required = ['purpose', 'quantity', 'subdivision', 'subarticle', 'payment_method', 'amount'];
-
+            
             required.forEach(field => {
-                if (!formData.get(field) || formData.get(field).trim() === '') {
+                const value = formData.get(field);
+                if (!value || value.trim() === '') {
                     errors[field] = 'Это поле обязательно для заполнения';
                 }
             });
-
+            
             // Валидация номера карты (если указан)
             const cardNumber = formData.get('card_number');
             if (cardNumber && cardNumber.trim() !== '') {
                 const cleaned = cardNumber.replace(/\s/g, '');
-                if (!/^\d{16}$/.test(cleaned) && !/^\d{4}\s?\d{4}\s?\d{4}\s?\d{4}$/.test(cardNumber)) {
+                if (!/^\d{16}$/.test(cleaned)) {
                     errors['card_number'] = 'Введите корректный номер карты (16 цифр)';
                 }
             }
-
+            
             return errors;
         }
-
+        
         // Функция показа ошибок
         function showErrors(errors) {
-            // Удаляем предыдущие сообщения об ошибках
-            document.querySelectorAll('.error').forEach(el => el.remove());
-
-            // Добавляем новые ошибки
+            // Скрываем все предыдущие ошибки
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.style.display = 'none';
+                el.textContent = '';
+            });
+            document.querySelectorAll('input, select, textarea').forEach(el => {
+                el.style.borderColor = '';
+            });
+            
+            // Показываем новые ошибки
             Object.entries(errors).forEach(([field, message]) => {
                 const input = document.querySelector(`[name="${field}"]`);
                 if (input) {
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'error';
-                    errorDiv.textContent = message;
-                    errorDiv.style.display = 'block';
-                    input.parentNode.appendChild(errorDiv);
-                    input.style.borderColor = '#e74c3c';
-
-                    // Убираем подсветку при фокусе
-                    input.addEventListener('focus', () => {
-                        input.style.borderColor = '';
-                        errorDiv.remove();
-                    });
+                    const errorDiv = input.parentNode.querySelector('.error-message');
+                    if (errorDiv) {
+                        errorDiv.textContent = message;
+                        errorDiv.style.display = 'block';
+                        input.style.borderColor = '#e74c3c';
+                    }
                 }
             });
         }
-
+        
         // Обработка отправки формы
         document.getElementById('form').addEventListener('submit', async (e) => {
             e.preventDefault();
-
+            
             // Показываем индикатор загрузки
             const submitBtn = document.querySelector('.submit-btn');
             const originalText = submitBtn.textContent;
             submitBtn.textContent = 'Отправка...';
             submitBtn.disabled = true;
-
+            
             try {
                 const formData = new FormData(e.target);
-
+                
                 // Валидация
                 const errors = validateForm(formData);
                 if (Object.keys(errors).length > 0) {
                     showErrors(errors);
                     submitBtn.textContent = originalText;
                     submitBtn.disabled = false;
-
-                    // Показываем уведомление
+                    
                     tg.showPopup({
                         title: 'Ошибка',
                         message: 'Пожалуйста, заполните все обязательные поля правильно.',
@@ -256,13 +269,13 @@
                     });
                     return;
                 }
-
+                
                 // Собираем данные
                 const formDataObj = {};
                 for (let [key, value] of formData.entries()) {
                     formDataObj[key] = value.trim();
                 }
-
+                
                 // Добавляем информацию о пользователе
                 const payload = {
                     formData: formDataObj,
@@ -276,19 +289,19 @@
                     initData: tg.initData,
                     timestamp: new Date().toISOString()
                 };
-
+                
                 // Отправляем данные боту
                 tg.sendData(JSON.stringify(payload));
-
+                
                 // Показываем успешное сообщение
                 tg.showPopup({
                     title: 'Успешно!',
-                    message: 'Анкета успешно отправлена. Можете закрыть это окно.',
+                    message: 'Анкета успешно отправлена!',
                     buttons: [{type: 'ok'}]
                 }, () => {
                     tg.close();
                 });
-
+                
             } catch (error) {
                 console.error('Error:', error);
                 tg.showPopup({
@@ -300,22 +313,29 @@
                 submitBtn.disabled = false;
             }
         });
-
+        
         // Автоматическое форматирование номера карты
         const cardInput = document.querySelector('input[name="card_number"]');
         if (cardInput) {
             cardInput.addEventListener('input', (e) => {
                 let value = e.target.value.replace(/\s/g, '');
                 if (value.length > 16) value = value.slice(0, 16);
-
+                
                 // Добавляем пробелы каждые 4 цифры
                 const formatted = value.replace(/(\d{4})(?=\d)/g, '$1 ');
                 e.target.value = formatted;
             });
         }
-
+        
         // Применяем тему Telegram
-        document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
+        if (tg.themeParams.bg_color) {
+            document.body.style.backgroundColor = tg.themeParams.bg_color;
+        }
+        
+        // Автоматическая подстройка под тему
+        tg.onEvent('themeChanged', () => {
+            document.body.style.backgroundColor = tg.themeParams.bg_color;
+        });
     </script>
 </body>
 </html>
