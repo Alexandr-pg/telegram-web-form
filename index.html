@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Анкета</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--tg-theme-hint-color, #999999);
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+            border-radius: 10px;
+            font-size: 16px;
+            background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+            color: var(--tg-theme-text-color, #000000);
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--tg-theme-button-color, #2481cc);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 20px;
+        }
+
+        .submit-btn:hover {
+            opacity: 0.9;
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .success {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .success-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--tg-theme-text-color, #000000);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 15px;
+            }
+
+            input, select, textarea {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <h1>📝 Заполнение анкеты</h1>
+
+        <form id="form">
+            <div class="form-group">
+                <label>📋 Назначение платежа *</label>
+                <input type="text" name="purpose" required placeholder="Введите назначение платежа">
+            </div>
+
+            <div class="form-group">
+                <label>🔢 Количество *</label>
+                <input type="text" name="quantity" required placeholder="Например: 10 шт.">
+            </div>
+
+            <div class="form-group">
+                <label>🏢 Подотдел *</label>
+                <input type="text" name="subdivision" required placeholder="Введите подотдел">
+            </div>
+
+            <div class="form-group">
+                <label>📑 Подстатья *</label>
+                <input type="text" name="subarticle" required placeholder="Введите подстатью">
+            </div>
+
+            <div class="form-group">
+                <label>💳 Метод оплаты *</label>
+                <select name="payment_method" required>
+                    <option value="">Выберите метод оплаты</option>
+                    <option value="Банковская карта">Банковская карта</option>
+                    <option value="Наличные">Наличные</option>
+                    <option value="Безналичный расчет">Безналичный расчет</option>
+                    <option value="Электронные деньги">Электронные деньги</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>💳 Банковская карта</label>
+                <input type="text" name="card_number" placeholder="**** **** **** ****">
+            </div>
+
+            <div class="form-group">
+                <label>📝 Реквизиты</label>
+                <textarea name="requisites" placeholder="Введите реквизиты"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>💰 Сумма и валюта *</label>
+                <input type="text" name="amount" required placeholder="Например: 1000 RUB">
+            </div>
+
+            <button type="submit" class="submit-btn">Отправить анкету</button>
+        </form>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+
+        // Настройка Web App
+        tg.expand(); // Расширяем на весь экран
+        tg.ready();
+
+        // Получаем информацию о пользователе
+        const user = tg.initDataUnsafe?.user || {};
+
+        // Функция валидации формы
+        function validateForm(formData) {
+            const errors = {};
+            const required = ['purpose', 'quantity', 'subdivision', 'subarticle', 'payment_method', 'amount'];
+
+            required.forEach(field => {
+                if (!formData.get(field) || formData.get(field).trim() === '') {
+                    errors[field] = 'Это поле обязательно для заполнения';
+                }
+            });
+
+            // Валидация номера карты (если указан)
+            const cardNumber = formData.get('card_number');
+            if (cardNumber && cardNumber.trim() !== '') {
+                const cleaned = cardNumber.replace(/\s/g, '');
+                if (!/^\d{16}$/.test(cleaned) && !/^\d{4}\s?\d{4}\s?\d{4}\s?\d{4}$/.test(cardNumber)) {
+                    errors['card_number'] = 'Введите корректный номер карты (16 цифр)';
+                }
+            }
+
+            return errors;
+        }
+
+        // Функция показа ошибок
+        function showErrors(errors) {
+            // Удаляем предыдущие сообщения об ошибках
+            document.querySelectorAll('.error').forEach(el => el.remove());
+
+            // Добавляем новые ошибки
+            Object.entries(errors).forEach(([field, message]) => {
+                const input = document.querySelector(`[name="${field}"]`);
+                if (input) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error';
+                    errorDiv.textContent = message;
+                    errorDiv.style.display = 'block';
+                    input.parentNode.appendChild(errorDiv);
+                    input.style.borderColor = '#e74c3c';
+
+                    // Убираем подсветку при фокусе
+                    input.addEventListener('focus', () => {
+                        input.style.borderColor = '';
+                        errorDiv.remove();
+                    });
+                }
+            });
+        }
+
+        // Обработка отправки формы
+        document.getElementById('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Показываем индикатор загрузки
+            const submitBtn = document.querySelector('.submit-btn');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Отправка...';
+            submitBtn.disabled = true;
+
+            try {
+                const formData = new FormData(e.target);
+
+                // Валидация
+                const errors = validateForm(formData);
+                if (Object.keys(errors).length > 0) {
+                    showErrors(errors);
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+
+                    // Показываем уведомление
+                    tg.showPopup({
+                        title: 'Ошибка',
+                        message: 'Пожалуйста, заполните все обязательные поля правильно.',
+                        buttons: [{type: 'ok'}]
+                    });
+                    return;
+                }
+
+                // Собираем данные
+                const formDataObj = {};
+                for (let [key, value] of formData.entries()) {
+                    formDataObj[key] = value.trim();
+                }
+
+                // Добавляем информацию о пользователе
+                const payload = {
+                    formData: formDataObj,
+                    user: {
+                        id: user.id,
+                        first_name: user.first_name,
+                        last_name: user.last_name,
+                        username: user.username,
+                        language_code: user.language_code
+                    },
+                    initData: tg.initData,
+                    timestamp: new Date().toISOString()
+                };
+
+                // Отправляем данные боту
+                tg.sendData(JSON.stringify(payload));
+
+                // Показываем успешное сообщение
+                tg.showPopup({
+                    title: 'Успешно!',
+                    message: 'Анкета успешно отправлена. Можете закрыть это окно.',
+                    buttons: [{type: 'ok'}]
+                }, () => {
+                    tg.close();
+                });
+
+            } catch (error) {
+                console.error('Error:', error);
+                tg.showPopup({
+                    title: 'Ошибка',
+                    message: 'Произошла ошибка при отправке. Попробуйте снова.',
+                    buttons: [{type: 'ok'}]
+                });
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Автоматическое форматирование номера карты
+        const cardInput = document.querySelector('input[name="card_number"]');
+        if (cardInput) {
+            cardInput.addEventListener('input', (e) => {
+                let value = e.target.value.replace(/\s/g, '');
+                if (value.length > 16) value = value.slice(0, 16);
+
+                // Добавляем пробелы каждые 4 цифры
+                const formatted = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+                e.target.value = formatted;
+            });
+        }
+
+        // Применяем тему Telegram
+        document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
+    </script>
+</body>
+</html>
